@@ -23,6 +23,7 @@ pub struct App {
     pub preview_scroll: u16,
     claude_dir: Option<String>,
     codex_dir: Option<String>,
+    skip_permissions: bool,
 }
 
 impl App {
@@ -43,6 +44,7 @@ impl App {
             preview_scroll: 0,
             claude_dir: config.claude_projects_dir,
             codex_dir: config.codex_sessions_dir,
+            skip_permissions: config.skip_permissions.unwrap_or(true),
         };
         app.update_preview_cache();
         app
@@ -76,7 +78,7 @@ impl App {
                         self.tree.toggle_expand();
                         self.update_preview_cache();
                     } else if let Some(entry) = self.tree.selected_session() {
-                        self.resume_command = Some(resume_cmd_for(entry));
+                        self.resume_command = Some(resume_cmd_for(entry, self.skip_permissions));
                         self.should_quit = true;
                     }
                 }
@@ -203,10 +205,16 @@ impl App {
     }
 }
 
-fn resume_cmd_for(entry: &session::SessionEntry) -> String {
+fn resume_cmd_for(entry: &session::SessionEntry, skip_permissions: bool) -> String {
     let resume = match entry.tool.as_str() {
-        "Claude Code" => format!("claude --resume {}", entry.id),
-        "Codex" => format!("codex resume {}", entry.id),
+        "Claude Code" => {
+            let skip = if skip_permissions { " --dangerously-skip-permissions" } else { "" };
+            format!("claude --resume {}{}", entry.id, skip)
+        }
+        "Codex" => {
+            let skip = if skip_permissions { " --dangerously-bypass-approvals-and-sandbox" } else { "" };
+            format!("codex resume {}{}", entry.id, skip)
+        }
         _ => return String::new(),
     };
     if entry.project_path.is_empty() {

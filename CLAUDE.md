@@ -108,6 +108,7 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 - `default_expanded`: 트리 기본 펼침 여부 (bool)
 - `claude_projects_dir`: Claude Code 프로젝트 디렉토리 경로
 - `codex_sessions_dir`: Codex 세션 디렉토리 경로
+- `skip_permissions`: resume 시 permission bypass 플래그 자동 추가 (기본: true). Claude Code: `--dangerously-skip-permissions`, Codex: `--dangerously-bypass-approvals-and-sandbox`
 
 ### 정렬 옵션
 - s 키로 정렬 모드 순환 (date → project → messages)

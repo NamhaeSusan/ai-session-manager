@@ -8,6 +8,7 @@ pub struct Config {
     pub default_expanded: Option<bool>,
     pub claude_projects_dir: Option<String>,
     pub codex_sessions_dir: Option<String>,
+    pub skip_permissions: Option<bool>,
 }
 
 impl Config {
@@ -29,6 +30,7 @@ impl Config {
             default_expanded: table.get("default_expanded").and_then(|v| v.as_bool()),
             claude_projects_dir: table.get("claude_projects_dir").and_then(|v| v.as_str()).map(|s| s.to_string()),
             codex_sessions_dir: table.get("codex_sessions_dir").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            skip_permissions: table.get("skip_permissions").and_then(|v| v.as_bool()),
         }
     }
 

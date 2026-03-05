@@ -82,6 +82,11 @@ default_expanded = false
 # Custom session directories
 claude_projects_dir = "~/.claude/projects"
 codex_sessions_dir = "~/.codex/sessions"
+
+# Auto-add permission bypass flags on resume (default: true)
+# Claude Code: --dangerously-skip-permissions
+# Codex: --dangerously-bypass-approvals-and-sandbox
+skip_permissions = true
 ```
 
 All options are optional. Defaults are used for any missing values.
@@ -92,6 +97,7 @@ All options are optional. Defaults are used for any missing values.
 | `default_expanded` | bool | `true` | Whether tree nodes are expanded on startup |
 | `claude_projects_dir` | string | `~/.claude/projects/` | Path to Claude Code projects directory |
 | `codex_sessions_dir` | string | `~/.codex/sessions/` | Path to Codex sessions directory |
+| `skip_permissions` | bool | `true` | Auto-add permission bypass flags on resume (`--dangerously-skip-permissions` for Claude Code, `--dangerously-bypass-approvals-and-sandbox` for Codex) |
 
 ## Session Sources
 
