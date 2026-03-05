@@ -59,7 +59,9 @@ asm
 | `/`       | Search / filter sessions        |
 | `Space`   | Toggle folder expand/collapse   |
 | `s`       | Cycle sort mode (date/project/messages) |
+| `S`       | Toggle sort order (asc/desc)    |
 | `i`       | Show session statistics         |
+| `?`       | Show keybindings help           |
 | `r`       | Refresh session list            |
 | `Ctrl+d`  | Scroll preview down             |
 | `Ctrl+u`  | Scroll preview up               |
@@ -83,6 +85,13 @@ codex_sessions_dir = "~/.codex/sessions"
 ```
 
 All options are optional. Defaults are used for any missing values.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `default_sort` | string | `"date"` | Startup sort mode. `"date"` (newest first), `"project"` (alphabetical), `"messages"` (most messages first) |
+| `default_expanded` | bool | `true` | Whether tree nodes are expanded on startup |
+| `claude_projects_dir` | string | `~/.claude/projects/` | Path to Claude Code projects directory |
+| `codex_sessions_dir` | string | `~/.codex/sessions/` | Path to Codex sessions directory |
 
 ## Session Sources
 
