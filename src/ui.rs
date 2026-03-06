@@ -23,7 +23,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_status_bar(frame, app, status_area);
 
     match app.mode {
-        Mode::Confirm => draw_confirm_popup(frame),
+        Mode::Confirm => draw_confirm_popup(frame, app),
         Mode::Stats => draw_stats_popup(frame, &app.tree.stats()),
         Mode::Help => draw_help_popup(frame),
         _ => {}
@@ -72,11 +72,12 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                 TreeNode::Session { entry } => {
                     let is_flat = app.tree.sort_mode != SortMode::ByProject;
                     let indent = if is_flat { "  " } else { "    " };
-                    let prompt = truncate_display(&entry.last_prompt, if is_flat { 30 } else { 40 });
+                    let prompt = truncate_display(&entry.last_prompt, if is_flat { 40 } else { 50 });
                     let rel = relative_time(&entry.modified);
+                    let marker_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
                     let mut spans = vec![
                         Span::raw(indent),
-                        Span::styled("\u{25cf} ", Style::default().fg(Color::Cyan)),
+                        Span::styled("\u{25cf} ", Style::default().fg(marker_color)),
                     ];
                     if is_flat && !entry.project_name.is_empty() {
                         spans.push(Span::styled(
@@ -114,22 +115,55 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
     let text = match app.tree.selected_session() {
         Some(entry) => {
             let branch = entry.git_branch.as_deref().unwrap_or("-");
+            let label = Style::default().fg(Color::DarkGray);
+            let value = Style::default().fg(Color::White);
+            let tool_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
             let mut lines = vec![
-                Line::from(format!("Project:  {}", entry.project_name)),
-                Line::from(format!("Path:     {}", entry.project_path)),
-                Line::from(format!("Branch:   {branch}")),
-                Line::from(format!("Created:  {}", entry.created)),
-                Line::from(format!("Messages: {}", entry.message_count)),
+                Line::from(vec![
+                    Span::styled("Tool:     ", label),
+                    Span::styled(entry.tool.clone(), Style::default().fg(tool_color)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Project:  ", label),
+                    Span::styled(entry.project_name.clone(), value),
+                ]),
+                Line::from(vec![
+                    Span::styled("Path:     ", label),
+                    Span::styled(entry.project_path.clone(), value),
+                ]),
+                Line::from(vec![
+                    Span::styled("Branch:   ", label),
+                    Span::styled(branch, value),
+                ]),
+                Line::from(vec![
+                    Span::styled("Created:  ", label),
+                    Span::styled(entry.created.clone(), value),
+                ]),
+                Line::from(vec![
+                    Span::styled("Messages: ", label),
+                    Span::styled(format!("{}", entry.message_count), value),
+                ]),
+                Line::from(vec![
+                    Span::styled("ID:       ", label),
+                    Span::styled(entry.id.clone(), Style::default().fg(Color::DarkGray)),
+                ]),
+                Line::from(vec![
+                    Span::styled("File:     ", label),
+                    Span::styled(entry.file_path.display().to_string(), Style::default().fg(Color::DarkGray)),
+                ]),
                 Line::from(""),
                 Line::from(Span::styled(
                     "\u{2500}\u{2500} Last Prompt \u{2500}\u{2500}",
-                    Style::default().add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::DarkGray),
                 )),
-                Line::from(entry.last_prompt.clone()),
+                Line::from(Span::styled(
+                    entry.last_prompt.clone(),
+                    Style::default().fg(Color::Yellow),
+                )),
                 Line::from(""),
                 Line::from(Span::styled(
                     "\u{2500}\u{2500} Recent Conversation \u{2500}\u{2500}",
-                    Style::default().add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::DarkGray),
                 )),
             ];
 
@@ -175,10 +209,10 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, area);
 }
 
-fn draw_confirm_popup(frame: &mut Frame) {
+fn draw_confirm_popup(frame: &mut Frame, app: &App) {
     let area = frame.area();
-    let w = 40u16.min(area.width);
-    let h = 5u16.min(area.height);
+    let w = 50u16.min(area.width);
+    let h = 8u16.min(area.height);
     let x = (area.width.saturating_sub(w)) / 2;
     let y = (area.height.saturating_sub(h)) / 2;
     let popup_area = Rect::new(x, y, w, h);
@@ -186,11 +220,30 @@ fn draw_confirm_popup(frame: &mut Frame) {
     frame.render_widget(Clear, popup_area);
 
     let block = Block::default()
-        .title("Confirm")
+        .title("Confirm Delete")
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Red));
 
-    let text = Paragraph::new("Delete this session? (y/n)")
+    let mut lines = vec![Line::from("")];
+    if let Some(entry) = app.tree.selected_session() {
+        let short_id = if entry.id.len() > 8 { &entry.id[..8] } else { &entry.id };
+        lines.push(Line::from(vec![
+            Span::styled("  Project: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.project_name.clone()),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  ID:      ", Style::default().fg(Color::DarkGray)),
+            Span::raw(format!("{short_id}...")),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Prompt:  ", Style::default().fg(Color::DarkGray)),
+            Span::raw(truncate_display(&entry.last_prompt, 30)),
+        ]));
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from("  Delete this session? (y/n)"));
+
+    let text = Paragraph::new(lines)
         .block(block)
         .style(Style::default().fg(Color::White));
 
