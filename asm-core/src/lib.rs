@@ -693,7 +693,7 @@ fn find_codex_file(dir: &Path, session_id: &str, max_depth: u32) -> Option<PathB
             && path
                 .file_stem()
                 .and_then(|s| s.to_str())
-                .is_some_and(|s| s.ends_with(session_id))
+                .is_some_and(|s| s == session_id || s.ends_with(&format!("-{session_id}")))
         {
             return Some(path);
         }
