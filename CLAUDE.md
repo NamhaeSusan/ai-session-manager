@@ -71,6 +71,7 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 3. **exec로 세션 재개** — TUI 종료 후 `exec`로 프로세스를 대체하여 깔끔하게 세션 전환
 4. **안전한 삭제** — 경로 정규화(canonicalize)로 디렉토리 traversal 방지, 빈 디렉토리만 정리
 5. **ScanMode** — `Fast` (200줄 스캔, line count) 웹 서버용 / `Full` (전체 파일, 실제 메시지 카운트) TUI용
+6. **asm-core 공개 API 안정성** — `asm-core`는 tre-file-manager가 `branch = "main"`으로 의존한다. 가능한 기존 응답 타입(struct 필드, enum variant)과 함수 시그니처를 유지하고, 새 함수/타입을 추가하는 방식으로 확장할 것
 
 ---
 
