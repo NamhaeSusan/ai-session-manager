@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::session::SessionEntry;
+use asm_core::SessionEntry;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SortMode {
@@ -133,7 +133,8 @@ impl TreeState {
             self.all_sessions
                 .iter()
                 .filter(|s| {
-                    s.last_prompt.to_lowercase().contains(&f)
+                    s.last_prompt.as_deref().unwrap_or("").to_lowercase().contains(&f)
+                        || s.first_prompt.to_lowercase().contains(&f)
                         || s.project_name.to_lowercase().contains(&f)
                         || s.id.to_lowercase().contains(&f)
                 })

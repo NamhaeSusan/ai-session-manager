@@ -72,7 +72,8 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                 TreeNode::Session { entry } => {
                     let is_flat = app.tree.sort_mode != SortMode::ByProject;
                     let indent = if is_flat { "  " } else { "    " };
-                    let prompt = truncate_display(&entry.last_prompt, if is_flat { 40 } else { 50 });
+                    let display_prompt = entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt);
+                    let prompt = truncate_display(display_prompt, if is_flat { 40 } else { 50 });
                     let rel = relative_time(&entry.modified);
                     let marker_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
                     let mut spans = vec![
@@ -157,7 +158,7 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(Color::DarkGray),
                 )),
                 Line::from(Span::styled(
-                    entry.last_prompt.clone(),
+                    entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt).to_string(),
                     Style::default().fg(Color::Yellow),
                 )),
                 Line::from(""),
@@ -237,7 +238,7 @@ fn draw_confirm_popup(frame: &mut Frame, app: &App) {
         ]));
         lines.push(Line::from(vec![
             Span::styled("  Prompt:  ", Style::default().fg(Color::DarkGray)),
-            Span::raw(truncate_display(&entry.last_prompt, 30)),
+            Span::raw(truncate_display(entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt), 30)),
         ]));
         lines.push(Line::from(""));
     }

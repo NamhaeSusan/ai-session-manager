@@ -1,7 +1,10 @@
+use std::path::PathBuf;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use asm_core::{self, ConversationLine, ScanMode, SessionEntry};
+
 use crate::config::Config;
-use crate::session::{self, ConversationLine};
 use crate::tree::TreeState;
 
 #[derive(PartialEq)]
@@ -21,18 +24,21 @@ pub struct App {
     pub resume_command: Option<String>,
     pub conversation_cache: Vec<ConversationLine>,
     pub preview_scroll: u16,
-    claude_dir: Option<String>,
-    codex_dir: Option<String>,
+    claude_dir: Option<PathBuf>,
+    codex_dir: Option<PathBuf>,
     skip_permissions: bool,
 }
 
 impl App {
     pub fn new(config: Config) -> Self {
-        let sessions = session::scan_all_sessions(
-            config.claude_projects_dir.as_deref(),
-            config.codex_sessions_dir.as_deref(),
-        );
         let sort_mode = config.sort_mode();
+        let claude_dir = config.claude_projects_dir.map(PathBuf::from);
+        let codex_dir = config.codex_sessions_dir.map(PathBuf::from);
+        let sessions = asm_core::scan_all_sessions(
+            claude_dir.as_deref(),
+            codex_dir.as_deref(),
+            ScanMode::Full,
+        );
         let tree = TreeState::new(sessions, sort_mode, config.default_expanded);
         let mut app = App {
             tree,
@@ -42,8 +48,8 @@ impl App {
             resume_command: None,
             conversation_cache: Vec::new(),
             preview_scroll: 0,
-            claude_dir: config.claude_projects_dir,
-            codex_dir: config.codex_sessions_dir,
+            claude_dir,
+            codex_dir,
             skip_permissions: config.skip_permissions.unwrap_or(true),
         };
         app.update_preview_cache();
@@ -175,7 +181,7 @@ impl App {
         match key.code {
             KeyCode::Char('y') | KeyCode::Enter => {
                 if let Some(entry) = self.tree.selected_session() {
-                    let _ = session::delete_session(entry);
+                    let _ = asm_core::delete_session(entry);
                 }
                 self.refresh();
                 self.mode = Mode::Normal;
@@ -189,15 +195,16 @@ impl App {
 
     fn update_preview_cache(&mut self) {
         self.conversation_cache = match self.tree.selected_session() {
-            Some(entry) => session::read_conversation(entry, 50),
+            Some(entry) => asm_core::read_conversation(entry, 50),
             None => Vec::new(),
         };
     }
 
     fn refresh(&mut self) {
-        let sessions = session::scan_all_sessions(
+        let sessions = asm_core::scan_all_sessions(
             self.claude_dir.as_deref(),
             self.codex_dir.as_deref(),
+            ScanMode::Full,
         );
         self.tree.refresh(sessions);
         self.preview_scroll = 0;
@@ -205,7 +212,7 @@ impl App {
     }
 }
 
-fn resume_cmd_for(entry: &session::SessionEntry, skip_permissions: bool) -> String {
+fn resume_cmd_for(entry: &SessionEntry, skip_permissions: bool) -> String {
     let resume = match entry.tool.as_str() {
         "Claude Code" => {
             let skip = if skip_permissions { " --dangerously-skip-permissions" } else { "" };

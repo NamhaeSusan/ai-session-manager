@@ -1,6 +1,5 @@
 mod app;
 mod config;
-mod session;
 mod tree;
 mod ui;
 
