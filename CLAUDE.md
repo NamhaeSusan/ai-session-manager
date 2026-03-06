@@ -10,14 +10,18 @@ Claude Code와 Codex의 세션을 터미널에서 탐색, 미리보기, 재개, 
 
 ```
 ai-session-manager/
-├── Cargo.toml              # 프로젝트 매니페스트 (asm)
-├── src/
-│   ├── main.rs             # 엔트리포인트, 터미널 초기화/정리, 이벤트 루프
-│   ├── app.rs              # App 상태 관리, 키 입력 핸들링
-│   ├── config.rs           # 설정 파일 로드 (~/.config/asm/config.toml)
-│   ├── session.rs          # 세션 스캔/파싱/삭제/대화 읽기 (Claude Code, Codex)
-│   ├── tree.rs             # 3단 트리 구조 (Tool -> Project -> Session), 필터링
-│   └── ui.rs               # ratatui 기반 UI 렌더링 (트리, 프리뷰, 상태바, 팝업)
+├── Cargo.toml              # [workspace] members = ["asm-core", "asm"]
+├── asm-core/               # 공유 라이브러리 (tre-file-manager에서도 사용)
+│   ├── Cargo.toml           # deps: serde, serde_json
+│   └── src/lib.rs           # 세션 스캔/파싱/삭제/대화 읽기 (ScanMode::Fast/Full)
+├── asm/                    # TUI 바이너리
+│   ├── Cargo.toml           # deps: asm-core, ratatui, crossterm, serde, serde_json, toml
+│   └── src/
+│       ├── main.rs          # 엔트리포인트, 터미널 초기화/정리, 이벤트 루프
+│       ├── app.rs           # App 상태 관리, 키 입력 핸들링
+│       ├── config.rs        # 설정 파일 로드 (~/.config/asm/config.toml)
+│       ├── tree.rs          # 3단 트리 구조 (Tool -> Project -> Session), 필터링
+│       └── ui.rs            # ratatui 기반 UI 렌더링 (트리, 프리뷰, 상태바, 팝업)
 ├── README.md
 └── CLAUDE.md
 ```
@@ -62,10 +66,11 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 
 ### 핵심 설계 원칙
 
-1. **외부 런타임 의존성 없음** — 순수 Rust, 시스템 라이브러리만 사용. 날짜 계산도 직접 구현
-2. **exec로 세션 재개** — TUI 종료 후 `exec`로 프로세스를 대체하여 깔끔하게 세션 전환
-3. **안전한 삭제** — 경로 정규화(canonicalize)로 디렉토리 traversal 방지, 빈 디렉토리만 정리
-4. **점진적 파싱** — 세션 파일의 처음 50줄만 읽어 메타데이터와 첫 프롬프트 추출
+1. **공유 라이브러리** — 세션 로직을 `asm-core`로 분리하여 tre-file-manager와 공유
+2. **외부 런타임 의존성 없음** — 순수 Rust, 시스템 라이브러리만 사용. 날짜 계산도 직접 구현
+3. **exec로 세션 재개** — TUI 종료 후 `exec`로 프로세스를 대체하여 깔끔하게 세션 전환
+4. **안전한 삭제** — 경로 정규화(canonicalize)로 디렉토리 traversal 방지, 빈 디렉토리만 정리
+5. **ScanMode** — `Fast` (200줄 스캔, line count) 웹 서버용 / `Full` (전체 파일, 실제 메시지 카운트) TUI용
 
 ---
 
@@ -73,6 +78,7 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 
 | 영역 | 라이브러리 | 용도 |
 |------|-----------|------|
+| 세션 스캐닝 | `asm-core` (워크스페이스 내) | 세션 감지·파싱·삭제·대화 읽기 공유 라이브러리 |
 | TUI 렌더링 | `ratatui` 0.29 | 위젯 기반 터미널 UI |
 | 터미널 I/O | `crossterm` 0.28 | 키 입력, raw mode, alternate screen |
 | 직렬화 | `serde` 1 + `serde_json` 1 | JSONL 세션 파일 파싱 |

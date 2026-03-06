@@ -35,10 +35,17 @@ A terminal UI for browsing, resuming, and deleting Claude Code and Codex session
 - Configuration file support (`~/.config/asm/config.toml`)
 - Keyboard-driven navigation
 
+## Project Structure
+
+This project is a Cargo workspace with two members:
+
+- **`asm-core`** — Shared library for session scanning, parsing, deletion, and conversation reading. Also used by [tre-file-manager](https://github.com/NamhaeSusan/tre-file-manager) as a git dependency.
+- **`asm`** — TUI binary that depends on `asm-core`.
+
 ## Installation
 
 ```bash
-cargo install --path .
+cargo install --path asm
 ```
 
 Requires Rust 1.70+.
@@ -106,13 +113,14 @@ All options are optional. Defaults are used for any missing values.
 
 ## Dependencies
 
-| Crate       | Purpose                   |
-|-------------|---------------------------|
-| `ratatui`   | TUI rendering             |
-| `crossterm` | Terminal input/output     |
-| `serde`     | Session data (de)serialize |
-| `serde_json`| JSON parsing              |
-| `toml`      | Configuration file parsing |
+| Crate       | Package  | Purpose                   |
+|-------------|----------|---------------------------|
+| `asm-core`  | asm-core | Session scanning/parsing/deletion (shared library) |
+| `ratatui`   | asm      | TUI rendering             |
+| `crossterm` | asm      | Terminal input/output     |
+| `serde`     | both     | Session data (de)serialize |
+| `serde_json`| both     | JSON parsing              |
+| `toml`      | asm      | Configuration file parsing |
 
 ## License
 
