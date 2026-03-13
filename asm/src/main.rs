@@ -13,6 +13,11 @@ use crossterm::{
 use ratatui::prelude::*;
 
 fn main() -> io::Result<()> {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("asm {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;

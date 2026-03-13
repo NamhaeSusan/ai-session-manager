@@ -10,6 +10,8 @@ Claude Code와 Codex의 세션을 터미널에서 탐색, 미리보기, 재개, 
 
 ```
 ai-session-manager/
+├── .github/workflows/
+│   └── release.yml          # v* 태그 푸시 시 빌드 & GitHub Release 생성
 ├── Cargo.toml              # [workspace] members = ["asm-core", "asm"]
 ├── asm-core/               # 공유 라이브러리 (tre-file-manager에서도 사용)
 │   ├── Cargo.toml           # deps: serde, serde_json

@@ -44,6 +44,14 @@ This project is a Cargo workspace with two members:
 
 ## Installation
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew install NamhaeSusan/tap/asm
+```
+
+### From source
+
 ```bash
 cargo install --path asm
 ```
