@@ -29,7 +29,8 @@ impl SortMode {
 
 pub struct SessionStats {
     pub total: usize,
-    pub by_tool: Vec<(String, usize)>,
+    pub total_size: u64,
+    pub by_tool: Vec<(String, usize, u64)>,
     pub by_project: Vec<(String, usize)>,
 }
 
@@ -108,19 +109,23 @@ impl TreeState {
 
     pub fn stats(&self) -> SessionStats {
         let total = self.all_sessions.len();
-        let mut tool_counts: HashMap<String, usize> = HashMap::new();
+        let mut total_size: u64 = 0;
+        let mut tool_counts: HashMap<String, (usize, u64)> = HashMap::new();
         let mut proj_counts: HashMap<String, usize> = HashMap::new();
         for s in &self.all_sessions {
-            *tool_counts.entry(s.tool.clone()).or_default() += 1;
+            total_size += s.file_size;
+            let entry = tool_counts.entry(s.tool.clone()).or_default();
+            entry.0 += 1;
+            entry.1 += s.file_size;
             let name = if s.project_name.is_empty() { "(unknown)".to_string() } else { s.project_name.clone() };
             *proj_counts.entry(name).or_default() += 1;
         }
-        let mut by_tool: Vec<_> = tool_counts.into_iter().collect();
+        let mut by_tool: Vec<_> = tool_counts.into_iter().map(|(k, (c, s))| (k, c, s)).collect();
         by_tool.sort_by(|a, b| b.1.cmp(&a.1));
         let mut by_project: Vec<_> = proj_counts.into_iter().collect();
         by_project.sort_by(|a, b| b.1.cmp(&a.1));
         by_project.truncate(10);
-        SessionStats { total, by_tool, by_project }
+        SessionStats { total, total_size, by_tool, by_project }
     }
 
     pub fn build_tree(&mut self) {
@@ -299,5 +304,9 @@ impl TreeState {
 
     pub fn nodes(&self) -> &[TreeNode] {
         &self.nodes
+    }
+
+    pub fn all_sessions(&self) -> &[SessionEntry] {
+        &self.all_sessions
     }
 }

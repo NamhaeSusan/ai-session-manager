@@ -26,6 +26,8 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Mode::Confirm => draw_confirm_popup(frame, app),
         Mode::Stats => draw_stats_popup(frame, &app.tree.stats()),
         Mode::Help => draw_help_popup(frame),
+        Mode::BulkCleanup => draw_bulk_cleanup_popup(frame, app),
+        Mode::BulkCleanupConfirm => draw_bulk_cleanup_confirm_popup(frame, app),
         _ => {}
     }
 }
@@ -88,7 +90,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     }
                     spans.push(Span::raw(prompt));
                     spans.push(Span::styled(
-                        format!("  {rel}  {}msg", entry.message_count),
+                        format!("  {rel}  {}msg  {}", entry.message_count, asm_core::format_size(entry.file_size)),
                         Style::default().fg(Color::DarkGray),
                     ));
                     Line::from(spans)
@@ -145,6 +147,10 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
                     Span::styled(format!("{}", entry.message_count), value),
                 ]),
                 Line::from(vec![
+                    Span::styled("Size:     ", label),
+                    Span::styled(asm_core::format_size(entry.file_size), value),
+                ]),
+                Line::from(vec![
                     Span::styled("ID:       ", label),
                     Span::styled(entry.id.clone(), Style::default().fg(Color::DarkGray)),
                 ]),
@@ -195,11 +201,13 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let text = match app.mode {
-        Mode::Normal => "? help  / search  s sort  i stats  d delete  Enter resume  r refresh  q quit",
+        Mode::Normal => "? help  / search  s sort  i stats  d delete  D bulk-delete  Enter resume  r refresh  q quit",
         Mode::Help => "Keybindings (Esc/?/q to close)",
         Mode::Search => "Type to search... (Esc cancel, Enter confirm)",
         Mode::Confirm => "Delete session? (y/Enter confirm, n/Esc cancel)",
         Mode::Stats => "Session Statistics (Esc/i/q to close)",
+        Mode::BulkCleanup => "Enter days, Enter to confirm, Esc to cancel",
+        Mode::BulkCleanupConfirm => "This cannot be undone! (y confirm, n/Esc cancel)",
     };
 
     let paragraph = Paragraph::new(Line::from(Span::styled(
@@ -262,7 +270,11 @@ fn draw_stats_popup(frame: &mut Frame, stats: &SessionStats) {
     frame.render_widget(Clear, popup_area);
 
     let block = Block::default()
-        .title(format!("Session Statistics (total: {})", stats.total))
+        .title(format!(
+            "Session Statistics (total: {}, {})",
+            stats.total,
+            asm_core::format_size(stats.total_size)
+        ))
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Cyan));
 
@@ -272,8 +284,8 @@ fn draw_stats_popup(frame: &mut Frame, stats: &SessionStats) {
             Style::default().add_modifier(Modifier::BOLD),
         )),
     ];
-    for (name, count) in &stats.by_tool {
-        lines.push(Line::from(format!("  {name}: {count}")));
+    for (name, count, size) in &stats.by_tool {
+        lines.push(Line::from(format!("  {name}: {count} ({})", asm_core::format_size(*size))));
     }
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
@@ -294,7 +306,7 @@ fn draw_stats_popup(frame: &mut Frame, stats: &SessionStats) {
 fn draw_help_popup(frame: &mut Frame) {
     let area = frame.area();
     let w = 50u16.min(area.width);
-    let h = 19u16.min(area.height);
+    let h = 20u16.min(area.height);
     let x = (area.width.saturating_sub(w)) / 2;
     let y = (area.height.saturating_sub(h)) / 2;
     let popup_area = Rect::new(x, y, w, h);
@@ -311,6 +323,7 @@ fn draw_help_popup(frame: &mut Frame) {
         ("Enter", "Resume session or toggle folder"),
         ("Space", "Toggle folder expand/collapse"),
         ("d", "Delete session (with confirmation)"),
+        ("D", "Bulk delete old sessions"),
         ("/", "Search / filter sessions"),
         ("s", "Cycle sort mode (date/project/messages)"),
         ("S", "Toggle sort order (asc/desc)"),
@@ -331,6 +344,95 @@ fn draw_help_popup(frame: &mut Frame) {
             ])
         })
         .collect();
+
+    let paragraph = Paragraph::new(lines)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(paragraph, popup_area);
+}
+
+fn draw_bulk_cleanup_popup(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let w = 50u16.min(area.width);
+    let h = 10u16.min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let popup_area = Rect::new(x, y, w, h);
+
+    frame.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .title("Bulk Delete Old Sessions")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Yellow));
+
+    let lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Delete sessions older than: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}_ days", app.bulk_days_input),
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Sessions to delete: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", app.bulk_target_count), Style::default().fg(Color::White)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Space to reclaim:   ", Style::default().fg(Color::DarkGray)),
+            Span::styled(asm_core::format_size(app.bulk_target_size), Style::default().fg(Color::White)),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled(
+            "  Enter confirm  Esc cancel",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+
+    let paragraph = Paragraph::new(lines)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(paragraph, popup_area);
+}
+
+fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let w = 50u16.min(area.width);
+    let h = 8u16.min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let popup_area = Rect::new(x, y, w, h);
+
+    frame.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .title("Confirm Bulk Delete")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Red));
+
+    let lines = vec![
+        Line::from(""),
+        Line::from(Span::styled(
+            "  This action cannot be undone!",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                format!("  Delete {} sessions ({})?", app.bulk_target_count, asm_core::format_size(app.bulk_target_size)),
+                Style::default().fg(Color::White),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled(
+            "  y confirm  n/Esc cancel",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
 
     let paragraph = Paragraph::new(lines)
         .block(block)
@@ -372,7 +474,7 @@ fn relative_time(modified: &str) -> String {
     }
 }
 
-fn parse_iso_timestamp(s: &str) -> Option<u64> {
+pub(crate) fn parse_iso_timestamp(s: &str) -> Option<u64> {
     if s.len() < 19 {
         return None;
     }

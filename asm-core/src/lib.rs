@@ -17,6 +17,7 @@ pub struct SessionEntry {
     pub modified: String,
     pub git_branch: Option<String>,
     pub file_path: PathBuf,
+    pub file_size: u64,
 }
 
 pub struct ConversationLine {
@@ -274,6 +275,8 @@ fn parse_claude_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
         ScanMode::Fast => count_lines(path),
     };
 
+    let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+
     Some(SessionEntry {
         id: session_id,
         tool: "Claude Code".to_string(),
@@ -286,6 +289,7 @@ fn parse_claude_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
         modified,
         git_branch,
         file_path: path.to_path_buf(),
+        file_size,
     })
 }
 
@@ -434,6 +438,8 @@ fn parse_codex_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
         ScanMode::Fast => count_lines(path),
     };
 
+    let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+
     Some(SessionEntry {
         id: session_id,
         tool: "Codex".to_string(),
@@ -446,6 +452,7 @@ fn parse_codex_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
         modified,
         git_branch,
         file_path: path.to_path_buf(),
+        file_size,
     })
 }
 
@@ -745,6 +752,18 @@ fn is_system_text(s: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
+
+pub fn format_size(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else if bytes < 1024 * 1024 * 1024 {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    }
+}
 
 pub fn truncate_str(s: &str, max_chars: usize) -> String {
     if s.chars().count() <= max_chars {

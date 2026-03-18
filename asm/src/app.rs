@@ -1,8 +1,11 @@
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use asm_core::{self, ConversationLine, ScanMode, SessionEntry};
+
+use crate::ui::parse_iso_timestamp;
 
 use crate::config::Config;
 use crate::tree::TreeState;
@@ -14,6 +17,8 @@ pub enum Mode {
     Confirm,
     Stats,
     Help,
+    BulkCleanup,
+    BulkCleanupConfirm,
 }
 
 pub struct App {
@@ -24,6 +29,9 @@ pub struct App {
     pub resume_command: Option<String>,
     pub conversation_cache: Vec<ConversationLine>,
     pub preview_scroll: u16,
+    pub bulk_days_input: String,
+    pub bulk_target_count: usize,
+    pub bulk_target_size: u64,
     claude_dir: Option<PathBuf>,
     codex_dir: Option<PathBuf>,
     skip_permissions: bool,
@@ -48,6 +56,9 @@ impl App {
             resume_command: None,
             conversation_cache: Vec::new(),
             preview_scroll: 0,
+            bulk_days_input: "30".to_string(),
+            bulk_target_count: 0,
+            bulk_target_size: 0,
             claude_dir,
             codex_dir,
             skip_permissions: config.skip_permissions.unwrap_or(true),
@@ -63,6 +74,8 @@ impl App {
             Mode::Confirm => self.handle_confirm(key),
             Mode::Stats => self.handle_stats(key),
             Mode::Help => self.handle_help(key),
+            Mode::BulkCleanup => self.handle_bulk_cleanup(key),
+            Mode::BulkCleanupConfirm => self.handle_bulk_cleanup_confirm(key),
         }
     }
 
@@ -108,6 +121,11 @@ impl App {
             }
             KeyCode::Char('i') => {
                 self.mode = Mode::Stats;
+            }
+            KeyCode::Char('D') => {
+                self.bulk_days_input = "30".to_string();
+                self.compute_bulk_targets();
+                self.mode = Mode::BulkCleanup;
             }
             KeyCode::Char('?') => {
                 self.mode = Mode::Help;
@@ -190,6 +208,97 @@ impl App {
                 self.mode = Mode::Normal;
             }
             _ => {}
+        }
+    }
+
+    fn handle_bulk_cleanup(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char(c) if c.is_ascii_digit() => {
+                self.bulk_days_input.push(c);
+                self.compute_bulk_targets();
+            }
+            KeyCode::Backspace => {
+                self.bulk_days_input.pop();
+                self.compute_bulk_targets();
+            }
+            KeyCode::Enter => {
+                if self.bulk_target_count > 0 {
+                    self.mode = Mode::BulkCleanupConfirm;
+                }
+            }
+            KeyCode::Esc => {
+                self.mode = Mode::Normal;
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_bulk_cleanup_confirm(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char('y') => {
+                self.execute_bulk_cleanup();
+                self.refresh();
+                self.mode = Mode::Normal;
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
+                self.mode = Mode::BulkCleanup;
+            }
+            _ => {}
+        }
+    }
+
+    fn compute_bulk_targets(&mut self) {
+        let days: u64 = self.bulk_days_input.parse().unwrap_or(0);
+        if days == 0 {
+            self.bulk_target_count = 0;
+            self.bulk_target_size = 0;
+            return;
+        }
+
+        let now_secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let threshold = days * 86400;
+
+        let mut count = 0usize;
+        let mut size = 0u64;
+        for s in self.tree.all_sessions() {
+            let mod_secs = parse_iso_timestamp(&s.modified).unwrap_or(0);
+            if mod_secs > 0 && now_secs.saturating_sub(mod_secs) > threshold {
+                count += 1;
+                size += s.file_size;
+            }
+        }
+        self.bulk_target_count = count;
+        self.bulk_target_size = size;
+    }
+
+    fn execute_bulk_cleanup(&mut self) {
+        let days: u64 = self.bulk_days_input.parse().unwrap_or(0);
+        if days == 0 {
+            return;
+        }
+
+        let now_secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let threshold = days * 86400;
+
+        let targets: Vec<SessionEntry> = self
+            .tree
+            .all_sessions()
+            .iter()
+            .filter(|s| {
+                let mod_secs = parse_iso_timestamp(&s.modified).unwrap_or(0);
+                mod_secs > 0 && now_secs.saturating_sub(mod_secs) > threshold
+            })
+            .cloned()
+            .collect();
+
+        for entry in &targets {
+            let _ = asm_core::delete_session(entry);
         }
     }
 

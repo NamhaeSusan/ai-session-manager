@@ -31,7 +31,9 @@ A terminal UI for browsing, resuming, and deleting Claude Code and Codex session
 - Search/filter sessions with `/`
 - Delete sessions with confirmation prompt
 - Sort sessions by date, project name, or message count (press `s`)
-- Session statistics popup (press `i`)
+- Disk usage display (file size in tree view, preview panel, and stats)
+- Bulk delete old sessions by age (press `D`)
+- Session statistics popup with disk usage (press `i`)
 - Configuration file support (`~/.config/asm/config.toml`)
 - Keyboard-driven navigation
 
@@ -71,6 +73,7 @@ asm
 | `j` / `k` | Move down / up                  |
 | `Enter`   | Resume session or toggle folder |
 | `d`       | Delete session (with confirmation) |
+| `D`       | Bulk delete old sessions           |
 | `/`       | Search / filter sessions        |
 | `Space`   | Toggle folder expand/collapse   |
 | `s`       | Cycle sort mode (date/project/messages) |
