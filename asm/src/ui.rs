@@ -88,13 +88,13 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
 
                     // Fixed prompt width based on inner area
                     let inner = (area.width as usize).saturating_sub(2); // borders
-                    let prefix_cols = if is_flat { 4 } else { 6 }; // indent + "● "
+                    let prefix_cols = if is_flat { 5 } else { 7 }; // indent + "● " (● is 2 cols on CJK terminals)
                     let proj_cols = if is_flat && !entry.project_name.is_empty() {
-                        entry.project_name.width() + 3
+                        entry.project_name.width_cjk() + 3
                     } else {
                         0
                     };
-                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
+                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.width_cjk() + 1);
                     let prompt = pad_or_truncate(display_prompt, prompt_max);
 
                     let mut spans = vec![
@@ -461,7 +461,7 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
 }
 
 fn pad_or_truncate(s: &str, width: usize) -> String {
-    let display_width = s.width();
+    let display_width = s.width_cjk();
     if display_width <= width {
         format!("{s}{:pad$}", "", pad = width - display_width)
     } else if width <= 3 {
@@ -469,7 +469,7 @@ fn pad_or_truncate(s: &str, width: usize) -> String {
     } else {
         let truncated = truncate_to_width(s, width - 3);
         let result = format!("{truncated}...");
-        let result_width = result.width();
+        let result_width = result.width_cjk();
         if result_width < width {
             format!("{result}{:pad$}", "", pad = width - result_width)
         } else {
@@ -482,7 +482,7 @@ fn truncate_to_width(s: &str, max_width: usize) -> String {
     let mut result = String::new();
     let mut current_width = 0;
     for ch in s.chars() {
-        let ch_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+        let ch_width = unicode_width::UnicodeWidthChar::width_cjk(ch).unwrap_or(0);
         if current_width + ch_width > max_width {
             break;
         }
@@ -493,10 +493,12 @@ fn truncate_to_width(s: &str, max_width: usize) -> String {
 }
 
 fn truncate_display(s: &str, max: usize) -> String {
-    if s.width() <= max {
+    if s.width_cjk() <= max {
         s.to_string()
+    } else if max <= 3 {
+        truncate_to_width(s, max)
     } else {
-        let truncated = truncate_to_width(s, max);
+        let truncated = truncate_to_width(s, max - 3);
         format!("{truncated}...")
     }
 }

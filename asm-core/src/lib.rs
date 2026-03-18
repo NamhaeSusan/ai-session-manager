@@ -263,10 +263,22 @@ fn parse_claude_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
         Some(truncate_str(&last_prompt, 200))
     };
 
-    let project_name = PathBuf::from(&cwd)
+    let mut project_name = PathBuf::from(&cwd)
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
+
+    // Fallback: derive project name from parent directory
+    // Claude stores sessions in ~/.claude/projects/<encoded-cwd>/<session>.jsonl
+    // where <encoded-cwd> is the CWD with / replaced by -
+    if project_name.is_empty() {
+        if let Some((name, decoded_cwd)) = decode_project_dir(path) {
+            project_name = name;
+            if cwd.is_empty() {
+                cwd = decoded_cwd;
+            }
+        }
+    }
 
     let modified = file_modified_time(path);
 
@@ -808,6 +820,38 @@ fn days_to_date(days: u64) -> (u64, u64, u64) {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
     (y, m, d)
+}
+
+/// Decode project name from the parent directory of a Claude session file.
+/// Claude stores sessions in ~/.claude/projects/<encoded-cwd>/ where the
+/// directory name is the CWD with `/` replaced by `-`.
+/// Uses the home directory as a known prefix to extract the project path.
+/// Only sets decoded_cwd if the path can be validated on disk.
+/// Returns (project_name, decoded_cwd).
+fn decode_project_dir(session_path: &Path) -> Option<(String, String)> {
+    let dir_name = session_path.parent()?.file_name()?.to_str()?;
+    let home = home_dir()?;
+    let home_str = home.to_str()?;
+    let home_encoded = home_str.replace('/', "-");
+
+    let rest = dir_name.strip_prefix(&home_encoded)?;
+    let rest = rest.strip_prefix('-').unwrap_or(rest);
+    if rest.is_empty() {
+        let name = home.file_name()?.to_str()?.to_string();
+        return Some((name, home_str.to_string()));
+    }
+
+    // Try to reconstruct the real path by replacing - with /
+    // This is ambiguous for paths with literal hyphens, so validate on disk
+    let candidate = PathBuf::from(format!("{home_str}/{}", rest.replace('-', "/")));
+    if candidate.exists() {
+        let name = candidate.file_name()?.to_str()?.to_string();
+        return Some((name, candidate.to_str()?.to_string()));
+    }
+
+    // Can't decode reliably; use last hyphen-segment as best-effort display name
+    let name = rest.rsplit('-').next().unwrap_or(rest).to_string();
+    Some((name, String::new()))
 }
 
 fn count_lines(path: &Path) -> u32 {
