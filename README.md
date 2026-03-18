@@ -132,6 +132,7 @@ All options are optional. Defaults are used for any missing values.
 | `serde`     | both     | Session data (de)serialize |
 | `serde_json`| both     | JSON parsing              |
 | `toml`      | asm      | Configuration file parsing |
+| `unicode-width` | asm  | CJK/wide character display width |
 
 ## License
 

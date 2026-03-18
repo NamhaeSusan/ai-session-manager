@@ -86,6 +86,7 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 | 터미널 I/O | `crossterm` 0.28 | 키 입력, raw mode, alternate screen |
 | 직렬화 | `serde` 1 + `serde_json` 1 | JSONL 세션 파일 파싱 |
 | 설정 파일 | `toml` 0.8 | TOML 설정 파일 파싱 |
+| Unicode 너비 | `unicode-width` 0.2 | CJK 문자 등 display width 계산 |
 
 ---
 

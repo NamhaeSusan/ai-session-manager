@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 
 use ratatui::layout::{Constraint, Layout, Rect};
+use unicode_width::UnicodeWidthStr;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap};
@@ -75,9 +76,27 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     let is_flat = app.tree.sort_mode != SortMode::ByProject;
                     let indent = if is_flat { "  " } else { "    " };
                     let display_prompt = entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt);
-                    let prompt = truncate_display(display_prompt, if is_flat { 40 } else { 50 });
                     let rel = relative_time(&entry.modified);
                     let marker_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
+
+                    let meta = format!(
+                        " {:>8} {:>5}msg {:>8}",
+                        rel,
+                        entry.message_count,
+                        asm_core::format_size(entry.file_size)
+                    );
+
+                    // Fixed prompt width based on inner area
+                    let inner = (area.width as usize).saturating_sub(2); // borders
+                    let prefix_cols = if is_flat { 4 } else { 6 }; // indent + "● "
+                    let proj_cols = if is_flat && !entry.project_name.is_empty() {
+                        entry.project_name.width() + 3
+                    } else {
+                        0
+                    };
+                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
+                    let prompt = pad_or_truncate(display_prompt, prompt_max.max(8));
+
                     let mut spans = vec![
                         Span::raw(indent),
                         Span::styled("\u{25cf} ", Style::default().fg(marker_color)),
@@ -90,7 +109,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     }
                     spans.push(Span::raw(prompt));
                     spans.push(Span::styled(
-                        format!("  {rel}  {}msg  {}", entry.message_count, asm_core::format_size(entry.file_size)),
+                        meta,
                         Style::default().fg(Color::DarkGray),
                     ));
                     Line::from(spans)
@@ -441,11 +460,37 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
     frame.render_widget(paragraph, popup_area);
 }
 
+fn pad_or_truncate(s: &str, width: usize) -> String {
+    let display_width = s.width();
+    if display_width <= width {
+        format!("{s}{:pad$}", "", pad = width - display_width)
+    } else if width <= 3 {
+        truncate_to_width(s, width)
+    } else {
+        let truncated = truncate_to_width(s, width - 3);
+        format!("{truncated}...")
+    }
+}
+
+fn truncate_to_width(s: &str, max_width: usize) -> String {
+    let mut result = String::new();
+    let mut current_width = 0;
+    for ch in s.chars() {
+        let ch_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+        if current_width + ch_width > max_width {
+            break;
+        }
+        result.push(ch);
+        current_width += ch_width;
+    }
+    result
+}
+
 fn truncate_display(s: &str, max: usize) -> String {
-    if s.chars().count() <= max {
+    if s.width() <= max {
         s.to_string()
     } else {
-        let truncated: String = s.chars().take(max).collect();
+        let truncated = truncate_to_width(s, max);
         format!("{truncated}...")
     }
 }
