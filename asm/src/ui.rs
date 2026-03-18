@@ -95,7 +95,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                         0
                     };
                     let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
-                    let prompt = pad_or_truncate(display_prompt, prompt_max.max(8));
+                    let prompt = pad_or_truncate(display_prompt, prompt_max);
 
                     let mut spans = vec![
                         Span::raw(indent),
@@ -468,7 +468,13 @@ fn pad_or_truncate(s: &str, width: usize) -> String {
         truncate_to_width(s, width)
     } else {
         let truncated = truncate_to_width(s, width - 3);
-        format!("{truncated}...")
+        let result = format!("{truncated}...");
+        let result_width = result.width();
+        if result_width < width {
+            format!("{result}{:pad$}", "", pad = width - result_width)
+        } else {
+            result
+        }
     }
 }
 
