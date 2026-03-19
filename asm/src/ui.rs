@@ -86,31 +86,19 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                         asm_core::format_size(entry.file_size)
                     );
 
-                    // Calculate prompt width using width() to match ratatui's rendering
-                    let inner = (area.width as usize).saturating_sub(2); // borders
-                    let prefix_cols = if is_flat { 4 } else { 6 }; // indent + "● "
+                    // Use width_cjk() for all measurements. On CJK terminals,
+                    // ambiguous-width chars (│ border, ● marker, → etc.) render
+                    // as 2 cols. Using width_cjk() guarantees content never
+                    // overflows the panel, at the cost of ~2 cols on non-CJK.
+                    let inner = (area.width as usize).saturating_sub(4); // borders: │ = 2 cols each on CJK
+                    let prefix_cols = if is_flat { 5 } else { 7 }; // indent + "● " (● = 2 on CJK)
                     let proj_cols = if is_flat && !entry.project_name.is_empty() {
-                        entry.project_name.width() + 3
+                        entry.project_name.width_cjk() + 3
                     } else {
                         0
                     };
                     let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
                     let prompt = pad_or_truncate(display_prompt, prompt_max);
-
-                    // CJK terminals render ambiguous-width chars wider than
-                    // ratatui expects (width_cjk > width). This causes cursor
-                    // drift that pushes trailing content past the panel border.
-                    // Measure the drift from: │ border (+1), ● marker, project
-                    // name, and prompt text, then shrink prompt to compensate.
-                    let cjk_extra = 1  // left border │ (U+2502, ambiguous)
-                        + cjk_ambiguous_extra("\u{25cf}")
-                        + cjk_ambiguous_extra(&entry.project_name)
-                        + cjk_ambiguous_extra(&prompt);
-                    let prompt = if cjk_extra > 0 {
-                        pad_or_truncate(display_prompt, prompt_max.saturating_sub(cjk_extra + 1))
-                    } else {
-                        prompt
-                    };
 
                     let mut spans = vec![
                         Span::raw(indent),
@@ -475,15 +463,8 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
     frame.render_widget(paragraph, popup_area);
 }
 
-/// Count extra columns that CJK terminals add for ambiguous-width characters.
-/// Returns width_cjk(s) - width(s), i.e. the number of chars that are 1-wide
-/// in ratatui's view but 2-wide on CJK terminals.
-fn cjk_ambiguous_extra(s: &str) -> usize {
-    s.width_cjk().saturating_sub(s.width())
-}
-
 fn pad_or_truncate(s: &str, width: usize) -> String {
-    let display_width = s.width();
+    let display_width = s.width_cjk();
     if display_width <= width {
         format!("{s}{:pad$}", "", pad = width - display_width)
     } else if width <= 3 {
@@ -491,7 +472,7 @@ fn pad_or_truncate(s: &str, width: usize) -> String {
     } else {
         let truncated = truncate_to_width(s, width - 3);
         let result = format!("{truncated}...");
-        let result_width = result.width();
+        let result_width = result.width_cjk();
         if result_width < width {
             format!("{result}{:pad$}", "", pad = width - result_width)
         } else {
@@ -504,7 +485,7 @@ fn truncate_to_width(s: &str, max_width: usize) -> String {
     let mut result = String::new();
     let mut current_width = 0;
     for ch in s.chars() {
-        let ch_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+        let ch_width = unicode_width::UnicodeWidthChar::width_cjk(ch).unwrap_or(0);
         if current_width + ch_width > max_width {
             break;
         }
@@ -515,7 +496,7 @@ fn truncate_to_width(s: &str, max_width: usize) -> String {
 }
 
 fn truncate_display(s: &str, max: usize) -> String {
-    if s.width() <= max {
+    if s.width_cjk() <= max {
         s.to_string()
     } else if max <= 3 {
         truncate_to_width(s, max)
