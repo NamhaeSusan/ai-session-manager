@@ -97,10 +97,13 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
                     let prompt = pad_or_truncate(display_prompt, prompt_max);
 
-                    // CJK terminals render ambiguous-width chars (●, →, etc.)
-                    // as 2 cols but ratatui positions them as 1. Measure the
-                    // actual overflow and shrink prompt to compensate.
-                    let cjk_extra = cjk_ambiguous_extra("\u{25cf}")
+                    // CJK terminals render ambiguous-width chars wider than
+                    // ratatui expects (width_cjk > width). This causes cursor
+                    // drift that pushes trailing content past the panel border.
+                    // Measure the drift from: │ border (+1), ● marker, project
+                    // name, and prompt text, then shrink prompt to compensate.
+                    let cjk_extra = 1  // left border │ (U+2502, ambiguous)
+                        + cjk_ambiguous_extra("\u{25cf}")
                         + cjk_ambiguous_extra(&entry.project_name)
                         + cjk_ambiguous_extra(&prompt);
                     let prompt = if cjk_extra > 0 {
