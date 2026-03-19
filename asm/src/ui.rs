@@ -97,7 +97,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     } else {
                         0
                     };
-                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
+                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 3);
                     let prompt = pad_or_truncate(display_prompt, prompt_max);
 
                     let mut spans = vec![
