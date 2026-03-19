@@ -86,7 +86,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                         asm_core::format_size(entry.file_size)
                     );
 
-                    // Fixed prompt width based on inner area
+                    // Calculate prompt width using width() to match ratatui's rendering
                     let inner = (area.width as usize).saturating_sub(2); // borders
                     let prefix_cols = if is_flat { 4 } else { 6 }; // indent + "● "
                     let proj_cols = if is_flat && !entry.project_name.is_empty() {
@@ -94,10 +94,20 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                     } else {
                         0
                     };
-                    // +2 safety margin: ● and other ambiguous-width chars render
-                    // wider on CJK terminals than ratatui's width() expects
-                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1 + 2);
+                    let prompt_max = inner.saturating_sub(prefix_cols + proj_cols + meta.len() + 1);
                     let prompt = pad_or_truncate(display_prompt, prompt_max);
+
+                    // CJK terminals render ambiguous-width chars (●, →, etc.)
+                    // as 2 cols but ratatui positions them as 1. Measure the
+                    // actual overflow and shrink prompt to compensate.
+                    let cjk_extra = cjk_ambiguous_extra("\u{25cf}")
+                        + cjk_ambiguous_extra(&entry.project_name)
+                        + cjk_ambiguous_extra(&prompt);
+                    let prompt = if cjk_extra > 0 {
+                        pad_or_truncate(display_prompt, prompt_max.saturating_sub(cjk_extra + 1))
+                    } else {
+                        prompt
+                    };
 
                     let mut spans = vec![
                         Span::raw(indent),
@@ -460,6 +470,13 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::White));
 
     frame.render_widget(paragraph, popup_area);
+}
+
+/// Count extra columns that CJK terminals add for ambiguous-width characters.
+/// Returns width_cjk(s) - width(s), i.e. the number of chars that are 1-wide
+/// in ratatui's view but 2-wide on CJK terminals.
+fn cjk_ambiguous_extra(s: &str) -> usize {
+    s.width_cjk().saturating_sub(s.width())
 }
 
 fn pad_or_truncate(s: &str, width: usize) -> String {

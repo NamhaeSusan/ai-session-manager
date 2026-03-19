@@ -2,21 +2,24 @@
 
 ## Summary
 Two fixes:
-1. Alignment: use `width()` (matching ratatui's internal rendering) + 2-column safety margin for ambiguous-width characters (●, → etc.) that render wider on CJK terminals.
+1. Alignment: use `width()` (matching ratatui) then measure actual CJK overflow per-line and shrink prompt to compensate exactly.
 2. Sessions with empty `cwd` in JSONL metadata had no project name. Added fallback to decode parent directory name.
 
 ## Changes
 - `asm/src/ui.rs`:
   - Use `width()` for all calculations (consistent with ratatui's rendering engine)
-  - Added +2 safety margin in `prompt_max` to compensate for ambiguous-width chars
+  - Two-pass approach: build prompt first, then measure `cjk_ambiguous_extra()` (= width_cjk - width) for ●, project name, and prompt text. If overflow > 0, re-truncate prompt by that amount.
+  - Added `cjk_ambiguous_extra()` helper
   - Fixed `truncate_display` to subtract 3 for "..." (was adding beyond max)
 - `asm-core/src/lib.rs`:
   - Added `decode_project_dir()`: decodes Claude project directory name using home dir as known prefix, validates path on disk, falls back to last hyphen-segment
 
 ## Design notes
 - ratatui uses `width()` (non-CJK) for character positioning internally
-- Using `width_cjk()` in our code creates a mismatch: ratatui positions chars at width() offsets, but terminal renders ambiguous chars wider, causing shift that grows with more ambiguous chars in the line
-- The +2 margin accounts for ● (always present, +1) and occasional ambiguous chars in prompt text (+1)
+- On CJK terminals, ambiguous-width chars (●, →, etc.) render as 2 cols but ratatui counts them as 1
+- Fixed margin (+2, +3) fails because the number of ambiguous chars varies per line
+- Two-pass approach measures the ACTUAL overflow for each line and compensates precisely
+- The re-truncated prompt has ≤ original ambiguous chars, so the overflow is guaranteed to be resolved
 
 ## Verification
 - `cargo build` — success
