@@ -62,3 +62,43 @@ jobs:
           files: |
             asm-*.tar.gz
             checksums.txt
+
+  update-tap:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Compute checksums
+        id: sha
+        run: |
+          echo "aarch64=$(sha256sum asm-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "x86_64_mac=$(sha256sum asm-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "x86_64_linux=$(sha256sum asm-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: NamhaeSusan/homebrew-tap
+          token: ${{ secrets.TAP_TOKEN }}
+
+      - name: Update formula
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VER="${VERSION#v}"
+          sed -i "s/version \".*\"/version \"${VER}\"/" Formula/asm.rb
+          sed -i "/aarch64-apple-darwin/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.aarch64 }}\"/}" Formula/asm.rb
+          sed -i "/x86_64-apple-darwin/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.x86_64_mac }}\"/}" Formula/asm.rb
+          sed -i "/x86_64-unknown-linux-gnu/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.x86_64_linux }}\"/}" Formula/asm.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/asm.rb
+          git commit -m "asm ${VERSION#v}"
+          git push
