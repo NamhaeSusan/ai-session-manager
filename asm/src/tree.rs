@@ -18,6 +18,14 @@ impl SortMode {
         }
     }
 
+    pub fn prev(self) -> Self {
+        match self {
+            SortMode::ByDate => SortMode::ByMessageCount,
+            SortMode::ByProject => SortMode::ByDate,
+            SortMode::ByMessageCount => SortMode::ByProject,
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             SortMode::ByDate => "date",
@@ -308,5 +316,17 @@ impl TreeState {
 
     pub fn all_sessions(&self) -> &[SessionEntry] {
         &self.all_sessions
+    }
+
+    pub fn set_sort(&mut self, mode: SortMode) {
+        self.sort_mode = mode;
+        self.build_tree();
+    }
+
+    pub fn set_default_expanded(&mut self, expanded: bool) {
+        self.default_expanded = expanded;
+        self.tool_expanded.clear();
+        self.project_expanded.clear();
+        self.build_tree();
     }
 }

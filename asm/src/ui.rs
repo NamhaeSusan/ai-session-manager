@@ -29,6 +29,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Mode::Help => draw_help_popup(frame),
         Mode::BulkCleanup => draw_bulk_cleanup_popup(frame, app),
         Mode::BulkCleanupConfirm => draw_bulk_cleanup_confirm_popup(frame, app),
+        Mode::Settings | Mode::SettingsEdit => draw_settings_popup(frame, app),
         _ => {}
     }
 }
@@ -223,13 +224,15 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let text = match app.mode {
-        Mode::Normal => "? help  / search  s sort  i stats  d delete  D bulk-delete  Enter resume  r refresh  q quit",
+        Mode::Normal => "? help  / search  s sort  c settings  i stats  d delete  D bulk-delete  Enter resume  r refresh  q quit",
         Mode::Help => "Keybindings (Esc/?/q to close)",
         Mode::Search => "Type to search... (Esc cancel, Enter confirm)",
         Mode::Confirm => "Delete session? (y/Enter confirm, n/Esc cancel)",
         Mode::Stats => "Session Statistics (Esc/i/q to close)",
         Mode::BulkCleanup => "Enter days, Enter to confirm, Esc to cancel",
         Mode::BulkCleanupConfirm => "This cannot be undone! (y confirm, n/Esc cancel)",
+        Mode::Settings => "j/k move  Enter edit  Esc close",
+        Mode::SettingsEdit => "Type to edit  Enter save  Esc cancel",
     };
 
     let paragraph = Paragraph::new(Line::from(Span::styled(
@@ -349,6 +352,7 @@ fn draw_help_popup(frame: &mut Frame) {
         ("/", "Search / filter sessions"),
         ("s", "Cycle sort mode (date/project/messages)"),
         ("S", "Toggle sort order (asc/desc)"),
+        ("c", "Open settings"),
         ("i", "Show session statistics"),
         ("r", "Refresh session list"),
         ("Ctrl+d", "Scroll preview down"),
@@ -455,6 +459,82 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
             Style::default().fg(Color::DarkGray),
         )),
     ];
+
+    let paragraph = Paragraph::new(lines)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(paragraph, popup_area);
+}
+
+fn draw_settings_popup(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let w = 55u16.min(area.width);
+    let h = 12u16.min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let popup_area = Rect::new(x, y, w, h);
+
+    frame.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .title("Settings")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Cyan));
+
+    let sort_label = app.tree.sort_mode.label();
+    let expanded = app.config.default_expanded.unwrap_or(false);
+    let skip_perms = app.config.skip_permissions.unwrap_or(true);
+    let claude_dir = app.config.claude_projects_dir.as_deref().unwrap_or("(default)");
+    let codex_dir = app.config.codex_sessions_dir.as_deref().unwrap_or("(default)");
+
+    let items: Vec<(&str, String)> = vec![
+        ("Sort Mode", format!("\u{25c0} {} \u{25b6}", sort_label)),
+        ("Expanded", if expanded { "[x]".into() } else { "[ ]".into() }),
+        ("Skip Perms", if skip_perms { "[x]".into() } else { "[ ]".into() }),
+        ("Claude Dir", claude_dir.to_string()),
+        ("Codex Dir", codex_dir.to_string()),
+    ];
+
+    let cursor = app.settings.cursor;
+    let editing = app.mode == Mode::SettingsEdit;
+    let inner_w = (w as usize).saturating_sub(4);
+
+    let mut lines = vec![Line::from("")];
+    for (i, (label, value)) in items.iter().enumerate() {
+        let is_selected = i == cursor;
+        let display_value = if editing && is_selected {
+            format!("{}|", app.settings.edit_buf)
+        } else {
+            value.clone()
+        };
+
+        let label_w = 14;
+        let val_max = inner_w.saturating_sub(label_w + 2);
+        let truncated_val = if display_value.width_cjk() > val_max {
+            format!("{}...", truncate_to_width(&display_value, val_max.saturating_sub(3)))
+        } else {
+            display_value
+        };
+
+        let style = if is_selected {
+            Style::default().bg(Color::DarkGray).fg(Color::White)
+        } else {
+            Style::default()
+        };
+
+        lines.push(Line::from(Span::styled(
+            format!("  {:<label_w$}{}", label, truncated_val),
+            style,
+        )));
+    }
+    lines.push(Line::from(""));
+
+    let save_path = app.config.save_path();
+    lines.push(Line::from(Span::styled(
+        format!("  {}", save_path.display()),
+        Style::default().fg(Color::DarkGray),
+    )));
 
     let paragraph = Paragraph::new(lines)
         .block(block)

@@ -19,6 +19,15 @@ pub enum Mode {
     Help,
     BulkCleanup,
     BulkCleanupConfirm,
+    Settings,
+    SettingsEdit,
+}
+
+pub const SETTINGS_COUNT: usize = 5;
+
+pub struct SettingsState {
+    pub cursor: usize,
+    pub edit_buf: String,
 }
 
 pub struct App {
@@ -32,6 +41,8 @@ pub struct App {
     pub bulk_days_input: String,
     pub bulk_target_count: usize,
     pub bulk_target_size: u64,
+    pub settings: SettingsState,
+    pub config: Config,
     claude_dir: Option<PathBuf>,
     codex_dir: Option<PathBuf>,
     skip_permissions: bool,
@@ -40,14 +51,15 @@ pub struct App {
 impl App {
     pub fn new(config: Config) -> Self {
         let sort_mode = config.sort_mode();
-        let claude_dir = config.claude_projects_dir.map(PathBuf::from);
-        let codex_dir = config.codex_sessions_dir.map(PathBuf::from);
+        let claude_dir = config.claude_projects_dir.as_deref().map(PathBuf::from);
+        let codex_dir = config.codex_sessions_dir.as_deref().map(PathBuf::from);
         let sessions = asm_core::scan_all_sessions(
             claude_dir.as_deref(),
             codex_dir.as_deref(),
             ScanMode::Full,
         );
         let tree = TreeState::new(sessions, sort_mode, config.default_expanded);
+        let skip_permissions = config.skip_permissions.unwrap_or(true);
         let mut app = App {
             tree,
             mode: Mode::Normal,
@@ -59,9 +71,11 @@ impl App {
             bulk_days_input: "30".to_string(),
             bulk_target_count: 0,
             bulk_target_size: 0,
+            settings: SettingsState { cursor: 0, edit_buf: String::new() },
+            config,
             claude_dir,
             codex_dir,
-            skip_permissions: config.skip_permissions.unwrap_or(true),
+            skip_permissions,
         };
         app.update_preview_cache();
         app
@@ -76,6 +90,8 @@ impl App {
             Mode::Help => self.handle_help(key),
             Mode::BulkCleanup => self.handle_bulk_cleanup(key),
             Mode::BulkCleanupConfirm => self.handle_bulk_cleanup_confirm(key),
+            Mode::Settings => self.handle_settings(key),
+            Mode::SettingsEdit => self.handle_settings_edit(key),
         }
     }
 
@@ -126,6 +142,10 @@ impl App {
                 self.bulk_days_input = "30".to_string();
                 self.compute_bulk_targets();
                 self.mode = Mode::BulkCleanup;
+            }
+            KeyCode::Char('c') => {
+                self.settings.cursor = 0;
+                self.mode = Mode::Settings;
             }
             KeyCode::Char('?') => {
                 self.mode = Mode::Help;
@@ -300,6 +320,105 @@ impl App {
         for entry in &targets {
             let _ = asm_core::delete_session(entry);
         }
+    }
+
+    fn handle_settings(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char('j') | KeyCode::Down => {
+                if self.settings.cursor + 1 < SETTINGS_COUNT {
+                    self.settings.cursor += 1;
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.settings.cursor = self.settings.cursor.saturating_sub(1);
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                self.apply_settings_action();
+            }
+            KeyCode::Left => {
+                if self.settings.cursor == 0 {
+                    self.cycle_sort_setting(false);
+                }
+            }
+            KeyCode::Right => {
+                if self.settings.cursor == 0 {
+                    self.cycle_sort_setting(true);
+                }
+            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('c') => {
+                self.mode = Mode::Normal;
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_settings_edit(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.mode = Mode::Settings;
+            }
+            KeyCode::Enter => {
+                let val = self.settings.edit_buf.clone();
+                let val_opt = if val.is_empty() { None } else { Some(val) };
+                match self.settings.cursor {
+                    3 => {
+                        self.config.claude_projects_dir = val_opt;
+                        self.claude_dir = self.config.claude_projects_dir.as_deref().map(PathBuf::from);
+                    }
+                    4 => {
+                        self.config.codex_sessions_dir = val_opt;
+                        self.codex_dir = self.config.codex_sessions_dir.as_deref().map(PathBuf::from);
+                    }
+                    _ => {}
+                }
+                self.config.save();
+                self.refresh();
+                self.mode = Mode::Settings;
+            }
+            KeyCode::Backspace => {
+                self.settings.edit_buf.pop();
+            }
+            KeyCode::Char(c) => {
+                self.settings.edit_buf.push(c);
+            }
+            _ => {}
+        }
+    }
+
+    fn apply_settings_action(&mut self) {
+        match self.settings.cursor {
+            0 => self.cycle_sort_setting(true),
+            1 => {
+                let new_val = !self.config.default_expanded.unwrap_or(false);
+                self.config.default_expanded = Some(new_val);
+                self.tree.set_default_expanded(new_val);
+                self.config.save();
+            }
+            2 => {
+                let new_val = !self.config.skip_permissions.unwrap_or(true);
+                self.config.skip_permissions = Some(new_val);
+                self.skip_permissions = new_val;
+                self.config.save();
+            }
+            3 => {
+                self.settings.edit_buf = self.config.claude_projects_dir.clone().unwrap_or_default();
+                self.mode = Mode::SettingsEdit;
+            }
+            4 => {
+                self.settings.edit_buf = self.config.codex_sessions_dir.clone().unwrap_or_default();
+                self.mode = Mode::SettingsEdit;
+            }
+            _ => {}
+        }
+    }
+
+    fn cycle_sort_setting(&mut self, forward: bool) {
+        let current = self.config.sort_mode();
+        let next = if forward { current.next() } else { current.prev() };
+        self.config.default_sort = Some(next.label().to_string());
+        self.tree.set_sort(next);
+        self.config.save();
+        self.update_preview_cache();
     }
 
     fn update_preview_cache(&mut self) {

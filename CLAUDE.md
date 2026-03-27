@@ -120,6 +120,15 @@ CLAUDE.md와 README.md 는 필수로 업데이트 하도록 한다.
 - `codex_sessions_dir`: Codex 세션 디렉토리 경로
 - `skip_permissions`: resume 시 permission bypass 플래그 자동 추가 (기본: true). Claude Code: `--dangerously-skip-permissions`, Codex: `--dangerously-bypass-approvals-and-sandbox`
 
+### 인앱 설정 편집기
+- c 키로 설정 팝업 열기
+- j/k로 항목 이동, Enter로 편집 (토글 또는 텍스트 입력)
+- Sort Mode: ◀▶ 또는 Enter로 순환
+- Expanded, Skip Perms: Enter로 토글
+- Claude Dir, Codex Dir: Enter로 텍스트 입력 모드 진입
+- 변경 즉시 앱 상태 반영 + config 파일 저장
+- 저장 경로: 기존 로드된 파일 또는 `~/.config/asm/config.toml` (신규)
+
 ### 정렬 옵션
 - s 키로 정렬 모드 순환 (date → project → messages)
 - 트리 타이틀에 현재 정렬 모드 표시

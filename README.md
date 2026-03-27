@@ -35,6 +35,7 @@ A terminal UI for browsing, resuming, and deleting Claude Code and Codex session
 - Bulk delete old sessions by age (press `D`)
 - Session statistics popup with disk usage (press `i`)
 - Configuration file support (`~/.config/asm/config.toml`)
+- In-app settings editor (press `c`) — change settings without editing files
 - Keyboard-driven navigation
 
 ## Project Structure
@@ -78,6 +79,7 @@ asm
 | `Space`   | Toggle folder expand/collapse   |
 | `s`       | Cycle sort mode (date/project/messages) |
 | `S`       | Toggle sort order (asc/desc)    |
+| `c`       | Open settings                  |
 | `i`       | Show session statistics         |
 | `?`       | Show keybindings help           |
 | `r`       | Refresh session list            |
@@ -88,7 +90,7 @@ asm
 
 ## Configuration
 
-Create `~/.config/asm/config.toml` (or `~/.asm.toml`) to customize behavior:
+Press `c` in the app to open the settings popup, or create `~/.config/asm/config.toml` (or `~/.asm.toml`) to customize behavior:
 
 ```toml
 # Sort mode on startup: "date", "project", or "messages"
