@@ -50,17 +50,9 @@ jobs:
       - name: Generate coverage report
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
 
-      - name: Upload coverage to Codecov (token)
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: secrets.CODECOV_TOKEN != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov.info
-          fail_ci_if_error: true
-
-      - name: Upload coverage to Codecov (tokenless)
-        uses: codecov/codecov-action@v5
-        if: secrets.CODECOV_TOKEN == '' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork)
-        with:
           files: lcov.info
           fail_ci_if_error: true

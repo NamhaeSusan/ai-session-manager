@@ -68,7 +68,7 @@ Requires Rust 1.70+.
 
 The `CI` workflow runs formatting, clippy, tests, and uploads coverage to Codecov.
 
-For public repositories, Codecov uploads from fork PRs can work without a token, but uploads to protected branches such as `main` may require a repository secret named `CODECOV_TOKEN`.
+Add a repository secret named `CODECOV_TOKEN` so the coverage job can upload `lcov.info` to Codecov.
 
 ## Usage
 
