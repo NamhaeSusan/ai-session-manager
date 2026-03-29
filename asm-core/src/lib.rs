@@ -117,11 +117,7 @@ pub fn read_conversation(entry: &SessionEntry, max_lines: usize) -> Vec<Conversa
 // Claude sessions
 // ---------------------------------------------------------------------------
 
-fn scan_claude_sessions_dir(
-    projects_dir: &Path,
-    sessions: &mut Vec<SessionEntry>,
-    mode: ScanMode,
-) {
+fn scan_claude_sessions_dir(projects_dir: &Path, sessions: &mut Vec<SessionEntry>, mode: ScanMode) {
     let read_dir = match std::fs::read_dir(projects_dir) {
         Ok(d) => d,
         Err(_) => return,
@@ -388,10 +384,7 @@ fn parse_codex_session(path: &Path, mode: ScanMode) -> Option<SessionEntry> {
 
         if msg_type == "event_msg" {
             if let Some(payload) = v.get("payload") {
-                let payload_type = payload
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("");
+                let payload_type = payload.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 match payload_type {
                     "user_message" => {
                         let text = payload
@@ -533,10 +526,7 @@ fn read_codex_conversation(
             Some(p) => p,
             None => continue,
         };
-        let payload_type = payload
-            .get("type")
-            .and_then(|t| t.as_str())
-            .unwrap_or("");
+        let payload_type = payload.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
         let role = match payload_type {
             "user_message" => "user",
@@ -609,10 +599,7 @@ fn delete_claude_by_id(home: &Path, session_id: &str) -> io::Result<()> {
         }
     }
 
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        "Session not found",
-    ))
+    Err(io::Error::new(io::ErrorKind::NotFound, "Session not found"))
 }
 
 fn delete_codex_by_id(home: &Path, session_id: &str) -> io::Result<()> {
@@ -630,10 +617,7 @@ fn delete_codex_by_id(home: &Path, session_id: &str) -> io::Result<()> {
             cleanup_codex_parents_from(&path, &sessions_dir);
             Ok(())
         }
-        None => Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Session not found",
-        )),
+        None => Err(io::Error::new(io::ErrorKind::NotFound, "Session not found")),
     }
 }
 

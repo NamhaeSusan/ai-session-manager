@@ -30,10 +30,19 @@ impl Config {
 
     fn from_table(table: &toml::Table) -> Self {
         Config {
-            default_sort: table.get("default_sort").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            default_sort: table
+                .get("default_sort")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             default_expanded: table.get("default_expanded").and_then(|v| v.as_bool()),
-            claude_projects_dir: table.get("claude_projects_dir").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            codex_sessions_dir: table.get("codex_sessions_dir").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            claude_projects_dir: table
+                .get("claude_projects_dir")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            codex_sessions_dir: table
+                .get("codex_sessions_dir")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             skip_permissions: table.get("skip_permissions").and_then(|v| v.as_bool()),
             loaded_from: None,
         }
@@ -55,7 +64,11 @@ impl Config {
         let config_dir = std::env::var("XDG_CONFIG_HOME")
             .ok()
             .map(PathBuf::from)
-            .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".config")))
+            .or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".config"))
+            })
             .unwrap_or_else(|| PathBuf::from("."));
         config_dir.join("asm").join("config.toml")
     }
@@ -88,9 +101,15 @@ impl Config {
 
 fn config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    if let Some(config_dir) = std::env::var("XDG_CONFIG_HOME").ok().map(PathBuf::from).or_else(|| {
-        std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".config"))
-    }) {
+    if let Some(config_dir) = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var("HOME")
+                .ok()
+                .map(|h| PathBuf::from(h).join(".config"))
+        })
+    {
         paths.push(config_dir.join("asm").join("config.toml"));
     }
     if let Ok(home) = std::env::var("HOME") {

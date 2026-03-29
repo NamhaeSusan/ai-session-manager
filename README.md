@@ -1,5 +1,8 @@
 # ai-session-manager
 
+[![CI](https://github.com/NamhaeSusan/ai-session-manager/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NamhaeSusan/ai-session-manager/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/NamhaeSusan/ai-session-manager/branch/main/graph/badge.svg)](https://codecov.io/gh/NamhaeSusan/ai-session-manager)
+
 A terminal UI for browsing, resuming, and deleting Claude Code and Codex sessions.
 
 ## Layout
@@ -60,6 +63,12 @@ cargo install --path asm
 ```
 
 Requires Rust 1.70+.
+
+## Development
+
+The `CI` workflow runs formatting, clippy, tests, and uploads coverage to Codecov.
+
+For public repositories, Codecov uploads from fork PRs can work without a token, but uploads to protected branches such as `main` may require a repository secret named `CODECOV_TOKEN`.
 
 ## Usage
 

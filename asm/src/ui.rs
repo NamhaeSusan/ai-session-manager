@@ -1,14 +1,14 @@
 use std::time::SystemTime;
 
 use ratatui::layout::{Constraint, Layout, Rect};
-use unicode_width::UnicodeWidthStr;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
+use unicode_width::UnicodeWidthStr;
 
 use crate::app::{App, Mode};
-use crate::tree::{SortMode, TreeNode, SessionStats};
+use crate::tree::{SessionStats, SortMode, TreeNode};
 
 pub fn draw(frame: &mut Frame, app: &App) {
     let outer = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(frame.area());
@@ -38,7 +38,11 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
     let title = if app.mode == Mode::Search {
         format!("Sessions [/ {}]", app.search_input)
     } else {
-        let arrow = if app.tree.sort_ascending { "\u{25b2}" } else { "\u{25bc}" };
+        let arrow = if app.tree.sort_ascending {
+            "\u{25b2}"
+        } else {
+            "\u{25bc}"
+        };
         format!("Sessions [sort: {} {}]", app.tree.sort_mode.label(), arrow)
     };
 
@@ -76,9 +80,14 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                 TreeNode::Session { entry } => {
                     let is_flat = app.tree.sort_mode != SortMode::ByProject;
                     let indent = if is_flat { "  " } else { "    " };
-                    let display_prompt = entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt);
+                    let display_prompt =
+                        entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt);
                     let rel = relative_time(&entry.modified);
-                    let marker_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
+                    let marker_color = if entry.tool == "Codex" {
+                        Color::Green
+                    } else {
+                        Color::Cyan
+                    };
 
                     let meta = format!(
                         " {:>8} {:>5}msg {:>8}",
@@ -112,10 +121,7 @@ fn draw_tree(frame: &mut Frame, app: &App, area: Rect) {
                         ));
                     }
                     spans.push(Span::raw(prompt));
-                    spans.push(Span::styled(
-                        meta,
-                        Style::default().fg(Color::DarkGray),
-                    ));
+                    spans.push(Span::styled(meta, Style::default().fg(Color::DarkGray)));
                     Line::from(spans)
                 }
             };
@@ -143,7 +149,11 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
             let branch = entry.git_branch.as_deref().unwrap_or("-");
             let label = Style::default().fg(Color::DarkGray);
             let value = Style::default().fg(Color::White);
-            let tool_color = if entry.tool == "Codex" { Color::Green } else { Color::Cyan };
+            let tool_color = if entry.tool == "Codex" {
+                Color::Green
+            } else {
+                Color::Cyan
+            };
             let mut lines = vec![
                 Line::from(vec![
                     Span::styled("Tool:     ", label),
@@ -179,7 +189,10 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
                 ]),
                 Line::from(vec![
                     Span::styled("File:     ", label),
-                    Span::styled(entry.file_path.display().to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        entry.file_path.display().to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                 ]),
                 Line::from(""),
                 Line::from(Span::styled(
@@ -187,7 +200,11 @@ fn draw_preview(frame: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(Color::DarkGray),
                 )),
                 Line::from(Span::styled(
-                    entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt).to_string(),
+                    entry
+                        .last_prompt
+                        .as_deref()
+                        .unwrap_or(&entry.first_prompt)
+                        .to_string(),
                     Style::default().fg(Color::Yellow),
                 )),
                 Line::from(""),
@@ -260,7 +277,11 @@ fn draw_confirm_popup(frame: &mut Frame, app: &App) {
 
     let mut lines = vec![Line::from("")];
     if let Some(entry) = app.tree.selected_session() {
-        let short_id = if entry.id.len() > 8 { &entry.id[..8] } else { &entry.id };
+        let short_id = if entry.id.len() > 8 {
+            &entry.id[..8]
+        } else {
+            &entry.id
+        };
         lines.push(Line::from(vec![
             Span::styled("  Project: ", Style::default().fg(Color::DarkGray)),
             Span::raw(entry.project_name.clone()),
@@ -271,7 +292,10 @@ fn draw_confirm_popup(frame: &mut Frame, app: &App) {
         ]));
         lines.push(Line::from(vec![
             Span::styled("  Prompt:  ", Style::default().fg(Color::DarkGray)),
-            Span::raw(truncate_display(entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt), 30)),
+            Span::raw(truncate_display(
+                entry.last_prompt.as_deref().unwrap_or(&entry.first_prompt),
+                30,
+            )),
         ]));
         lines.push(Line::from(""));
     }
@@ -303,14 +327,15 @@ fn draw_stats_popup(frame: &mut Frame, stats: &SessionStats) {
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Cyan));
 
-    let mut lines = vec![
-        Line::from(Span::styled(
-            "By Tool",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-    ];
+    let mut lines = vec![Line::from(Span::styled(
+        "By Tool",
+        Style::default().add_modifier(Modifier::BOLD),
+    ))];
     for (name, count, size) in &stats.by_tool {
-        lines.push(Line::from(format!("  {name}: {count} ({})", asm_core::format_size(*size))));
+        lines.push(Line::from(format!(
+            "  {name}: {count} ({})",
+            asm_core::format_size(*size)
+        )));
     }
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
@@ -396,20 +421,37 @@ fn draw_bulk_cleanup_popup(frame: &mut Frame, app: &App) {
     let lines = vec![
         Line::from(""),
         Line::from(vec![
-            Span::styled("  Delete sessions older than: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "  Delete sessions older than: ",
+                Style::default().fg(Color::DarkGray),
+            ),
             Span::styled(
                 format!("{}_ days", app.bulk_days_input),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  Sessions to delete: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", app.bulk_target_count), Style::default().fg(Color::White)),
+            Span::styled(
+                "  Sessions to delete: ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(
+                format!("{}", app.bulk_target_count),
+                Style::default().fg(Color::White),
+            ),
         ]),
         Line::from(vec![
-            Span::styled("  Space to reclaim:   ", Style::default().fg(Color::DarkGray)),
-            Span::styled(asm_core::format_size(app.bulk_target_size), Style::default().fg(Color::White)),
+            Span::styled(
+                "  Space to reclaim:   ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(
+                asm_core::format_size(app.bulk_target_size),
+                Style::default().fg(Color::White),
+            ),
         ]),
         Line::from(""),
         Line::from(Span::styled(
@@ -447,12 +489,14 @@ fn draw_bulk_cleanup_confirm_popup(frame: &mut Frame, app: &App) {
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from(vec![
-            Span::styled(
-                format!("  Delete {} sessions ({})?", app.bulk_target_count, asm_core::format_size(app.bulk_target_size)),
-                Style::default().fg(Color::White),
+        Line::from(vec![Span::styled(
+            format!(
+                "  Delete {} sessions ({})?",
+                app.bulk_target_count,
+                asm_core::format_size(app.bulk_target_size)
             ),
-        ]),
+            Style::default().fg(Color::White),
+        )]),
         Line::from(""),
         Line::from(Span::styled(
             "  y confirm  n/Esc cancel",
@@ -485,13 +529,31 @@ fn draw_settings_popup(frame: &mut Frame, app: &App) {
     let sort_label = app.tree.sort_mode.label();
     let expanded = app.config.default_expanded.unwrap_or(false);
     let skip_perms = app.config.skip_permissions.unwrap_or(true);
-    let claude_dir = app.config.claude_projects_dir.as_deref().unwrap_or("(default)");
-    let codex_dir = app.config.codex_sessions_dir.as_deref().unwrap_or("(default)");
+    let claude_dir = app
+        .config
+        .claude_projects_dir
+        .as_deref()
+        .unwrap_or("(default)");
+    let codex_dir = app
+        .config
+        .codex_sessions_dir
+        .as_deref()
+        .unwrap_or("(default)");
 
     let items: Vec<(&str, String)> = vec![
         ("Sort Mode", format!("\u{25c0} {} \u{25b6}", sort_label)),
-        ("Expanded", if expanded { "[x]".into() } else { "[ ]".into() }),
-        ("Skip Perms", if skip_perms { "[x]".into() } else { "[ ]".into() }),
+        (
+            "Expanded",
+            if expanded { "[x]".into() } else { "[ ]".into() },
+        ),
+        (
+            "Skip Perms",
+            if skip_perms {
+                "[x]".into()
+            } else {
+                "[ ]".into()
+            },
+        ),
         ("Claude Dir", claude_dir.to_string()),
         ("Codex Dir", codex_dir.to_string()),
     ];
@@ -512,7 +574,10 @@ fn draw_settings_popup(frame: &mut Frame, app: &App) {
         let label_w = 14;
         let val_max = inner_w.saturating_sub(label_w + 2);
         let truncated_val = if display_value.width_cjk() > val_max {
-            format!("{}...", truncate_to_width(&display_value, val_max.saturating_sub(3)))
+            format!(
+                "{}...",
+                truncate_to_width(&display_value, val_max.saturating_sub(3))
+            )
         } else {
             display_value
         };

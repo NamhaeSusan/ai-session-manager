@@ -71,7 +71,10 @@ impl App {
             bulk_days_input: "30".to_string(),
             bulk_target_count: 0,
             bulk_target_size: 0,
-            settings: SettingsState { cursor: 0, edit_buf: String::new() },
+            settings: SettingsState {
+                cursor: 0,
+                edit_buf: String::new(),
+            },
             config,
             claude_dir,
             codex_dir,
@@ -363,11 +366,16 @@ impl App {
                 match self.settings.cursor {
                     3 => {
                         self.config.claude_projects_dir = val_opt;
-                        self.claude_dir = self.config.claude_projects_dir.as_deref().map(PathBuf::from);
+                        self.claude_dir = self
+                            .config
+                            .claude_projects_dir
+                            .as_deref()
+                            .map(PathBuf::from);
                     }
                     4 => {
                         self.config.codex_sessions_dir = val_opt;
-                        self.codex_dir = self.config.codex_sessions_dir.as_deref().map(PathBuf::from);
+                        self.codex_dir =
+                            self.config.codex_sessions_dir.as_deref().map(PathBuf::from);
                     }
                     _ => {}
                 }
@@ -401,7 +409,8 @@ impl App {
                 self.config.save();
             }
             3 => {
-                self.settings.edit_buf = self.config.claude_projects_dir.clone().unwrap_or_default();
+                self.settings.edit_buf =
+                    self.config.claude_projects_dir.clone().unwrap_or_default();
                 self.mode = Mode::SettingsEdit;
             }
             4 => {
@@ -414,7 +423,11 @@ impl App {
 
     fn cycle_sort_setting(&mut self, forward: bool) {
         let current = self.config.sort_mode();
-        let next = if forward { current.next() } else { current.prev() };
+        let next = if forward {
+            current.next()
+        } else {
+            current.prev()
+        };
         self.config.default_sort = Some(next.label().to_string());
         self.tree.set_sort(next);
         self.config.save();
@@ -443,11 +456,19 @@ impl App {
 fn resume_cmd_for(entry: &SessionEntry, skip_permissions: bool) -> String {
     let resume = match entry.tool.as_str() {
         "Claude Code" => {
-            let skip = if skip_permissions { " --dangerously-skip-permissions" } else { "" };
+            let skip = if skip_permissions {
+                " --dangerously-skip-permissions"
+            } else {
+                ""
+            };
             format!("claude --resume {}{}", entry.id, skip)
         }
         "Codex" => {
-            let skip = if skip_permissions { " --dangerously-bypass-approvals-and-sandbox" } else { "" };
+            let skip = if skip_permissions {
+                " --dangerously-bypass-approvals-and-sandbox"
+            } else {
+                ""
+            };
             format!("codex resume {}{}", entry.id, skip)
         }
         _ => return String::new(),
@@ -455,6 +476,10 @@ fn resume_cmd_for(entry: &SessionEntry, skip_permissions: bool) -> String {
     if entry.project_path.is_empty() {
         resume
     } else {
-        format!("cd '{}' && {}", entry.project_path.replace('\'', "'\\''"), resume)
+        format!(
+            "cd '{}' && {}",
+            entry.project_path.replace('\'', "'\\''"),
+            resume
+        )
     }
 }

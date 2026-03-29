@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use asm_core::SessionEntry;
 
 #[derive(Clone, Copy, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum SortMode {
     ByDate,
     ByProject,
@@ -43,6 +44,7 @@ pub struct SessionStats {
 }
 
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum TreeNode {
     Tool {
         name: String,
@@ -88,7 +90,11 @@ pub struct TreeState {
 }
 
 impl TreeState {
-    pub fn new(sessions: Vec<SessionEntry>, sort_mode: SortMode, default_expanded: Option<bool>) -> Self {
+    pub fn new(
+        sessions: Vec<SessionEntry>,
+        sort_mode: SortMode,
+        default_expanded: Option<bool>,
+    ) -> Self {
         let expanded = default_expanded.unwrap_or(true);
         let mut state = TreeState {
             nodes: Vec::new(),
@@ -125,15 +131,27 @@ impl TreeState {
             let entry = tool_counts.entry(s.tool.clone()).or_default();
             entry.0 += 1;
             entry.1 += s.file_size;
-            let name = if s.project_name.is_empty() { "(unknown)".to_string() } else { s.project_name.clone() };
+            let name = if s.project_name.is_empty() {
+                "(unknown)".to_string()
+            } else {
+                s.project_name.clone()
+            };
             *proj_counts.entry(name).or_default() += 1;
         }
-        let mut by_tool: Vec<_> = tool_counts.into_iter().map(|(k, (c, s))| (k, c, s)).collect();
+        let mut by_tool: Vec<_> = tool_counts
+            .into_iter()
+            .map(|(k, (c, s))| (k, c, s))
+            .collect();
         by_tool.sort_by(|a, b| b.1.cmp(&a.1));
         let mut by_project: Vec<_> = proj_counts.into_iter().collect();
         by_project.sort_by(|a, b| b.1.cmp(&a.1));
         by_project.truncate(10);
-        SessionStats { total, total_size, by_tool, by_project }
+        SessionStats {
+            total,
+            total_size,
+            by_tool,
+            by_project,
+        }
     }
 
     pub fn build_tree(&mut self) {
@@ -146,7 +164,11 @@ impl TreeState {
             self.all_sessions
                 .iter()
                 .filter(|s| {
-                    s.last_prompt.as_deref().unwrap_or("").to_lowercase().contains(&f)
+                    s.last_prompt
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .contains(&f)
                         || s.first_prompt.to_lowercase().contains(&f)
                         || s.project_name.to_lowercase().contains(&f)
                         || s.id.to_lowercase().contains(&f)
@@ -166,7 +188,10 @@ impl TreeState {
         for tool_name in tools {
             let tool_sessions = &tool_map[&tool_name];
             let tool_total = tool_sessions.len() as u32;
-            let tool_expanded = *self.tool_expanded.get(&tool_name).unwrap_or(&self.default_expanded);
+            let tool_expanded = *self
+                .tool_expanded
+                .get(&tool_name)
+                .unwrap_or(&self.default_expanded);
 
             self.nodes.push(TreeNode::Tool {
                 name: tool_name.clone(),
@@ -184,7 +209,11 @@ impl TreeState {
                 SortMode::ByDate => {
                     let mut sorted: Vec<&SessionEntry> = tool_sessions.clone();
                     sorted.sort_by(|a, b| {
-                        if asc { a.modified.cmp(&b.modified) } else { b.modified.cmp(&a.modified) }
+                        if asc {
+                            a.modified.cmp(&b.modified)
+                        } else {
+                            b.modified.cmp(&a.modified)
+                        }
                     });
                     for s in sorted {
                         self.nodes.push(TreeNode::Session { entry: s.clone() });
@@ -193,7 +222,11 @@ impl TreeState {
                 SortMode::ByMessageCount => {
                     let mut sorted: Vec<&SessionEntry> = tool_sessions.clone();
                     sorted.sort_by(|a, b| {
-                        if asc { a.message_count.cmp(&b.message_count) } else { b.message_count.cmp(&a.message_count) }
+                        if asc {
+                            a.message_count.cmp(&b.message_count)
+                        } else {
+                            b.message_count.cmp(&a.message_count)
+                        }
                     });
                     for s in sorted {
                         self.nodes.push(TreeNode::Session { entry: s.clone() });
@@ -205,11 +238,22 @@ impl TreeState {
                         proj_map.entry(s.project_path.clone()).or_default().push(s);
                     }
 
-                    let mut proj_list: Vec<(&String, &Vec<&SessionEntry>)> = proj_map.iter().collect();
+                    let mut proj_list: Vec<(&String, &Vec<&SessionEntry>)> =
+                        proj_map.iter().collect();
                     proj_list.sort_by(|a, b| {
-                        let name_a = a.1.first().map(|s| s.project_name.to_lowercase()).unwrap_or_default();
-                        let name_b = b.1.first().map(|s| s.project_name.to_lowercase()).unwrap_or_default();
-                        if asc { name_a.cmp(&name_b) } else { name_b.cmp(&name_a) }
+                        let name_a =
+                            a.1.first()
+                                .map(|s| s.project_name.to_lowercase())
+                                .unwrap_or_default();
+                        let name_b =
+                            b.1.first()
+                                .map(|s| s.project_name.to_lowercase())
+                                .unwrap_or_default();
+                        if asc {
+                            name_a.cmp(&name_b)
+                        } else {
+                            name_b.cmp(&name_a)
+                        }
                     });
 
                     for (proj_path, sess_list) in proj_list {
@@ -218,7 +262,10 @@ impl TreeState {
                             .map(|s| s.project_name.clone())
                             .unwrap_or_default();
                         let proj_key = format!("{tool_name}:{proj_path}");
-                        let proj_expanded = *self.project_expanded.get(&proj_key).unwrap_or(&self.default_expanded);
+                        let proj_expanded = *self
+                            .project_expanded
+                            .get(&proj_key)
+                            .unwrap_or(&self.default_expanded);
 
                         self.nodes.push(TreeNode::Project {
                             name: proj_name,
